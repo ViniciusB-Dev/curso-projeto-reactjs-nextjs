@@ -1,4 +1,4 @@
-import { Component } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 import './styles.css';
 
@@ -8,105 +8,89 @@ import { loadPosts } from '../../utils/load-posts'
 import { Button } from '../../components/Button/index';
 import { TextInput } from '../../components/TextInput';
 
+export const Home = () => {
 
-export class Home extends Component {
+  const [posts, setPosts] = useState([]);
+  const [allPosts, setAllPosts] = useState([]);
+  const [page, setPage] = useState(0);
+  const [postsPerPage] = useState(10);
+  const [searchValue, setSearchValue] = useState('');
 
-  state = {
-      posts: [],
-      allPosts: [],
-      page: 0,
-      postsPerPage: 2,
-      searchValue: ''
-  };
+  const noMorePosts = page + postsPerPage >= allPosts.length;
 
-  timeoutUpdade = null;
+     // filtrando posts se existir no campo digitado
+  const filteredPosts = !!searchValue ?
+        allPosts.filter(posts => {
+          return posts.title.toLowerCase().includes(
+            searchValue.toLocaleLowerCase()
+         );
+     })
+     : posts;
 
-  async componentDidMount() {
-   await this.loadPosts();
-  }
+ 
 
-  loadPosts = async () => {
-    const { page, postsPerPage } = this.state;
-
+  const handleLoadPosts = useCallback(async (page, postsPerPage) => {
     const postsAndPhotos = await loadPosts();
-    this.setState({ 
-      posts: postsAndPhotos.slice(page, postsPerPage),
-      allPosts: postsAndPhotos,
-    });
-  }
 
-  loadMorePosts = () => {
-    const {
-      page,
-      postsPerPage,
-      allPosts,
-      posts
-    } = this.state;
+    setPosts(postsAndPhotos.slice(page, postsPerPage));
+    setAllPosts(postsAndPhotos);
+
+  }, [])
+  
+  useEffect(() => {
+    handleLoadPosts(0, postsPerPage);
+  }, [handleLoadPosts, postsPerPage])
+
+  const loadMorePosts = () => {
 
     const nextPage = page + postsPerPage;
     const nextPosts = allPosts.slice(nextPage, nextPage + postsPerPage);
     posts.push(...nextPosts);
 
-    this.setState({ posts, page: nextPage })
-
-    console.log(page, postsPerPage, nextPage, nextPage + postsPerPage)
+    setPosts(posts);
+    setPage(nextPage);    
   }
 
-  handleChange = (e) => {
+  const handleChange = (e) => {
     const { value } = e.target;
-    this.setState({ searchValue: value });
+    setSearchValue(value)
   }
 
-  render() {
-    const { posts, page, postsPerPage, allPosts, searchValue } = this.state;
-    const noMorePosts = page + postsPerPage >= allPosts.length;
+  return (
+    <section className='container'>
 
-    // filtrando posts se existir no campo digitado
-    const filteredPosts = !!searchValue ?
-    allPosts.filter(posts => {
-      return posts.title.toLowerCase().includes(
-         searchValue.toLocaleLowerCase()
-        );
-    })
-    : posts;
-
-    return (
-      <section className='container'>
-
-        <div className='search-container'>
-          {!!searchValue && (
-              <h1>Search value: {searchValue}</h1>
-          )}
-
-          <TextInput 
-            searchValue={searchValue} 
-            handleChange={this.handleChange}
-          />
-        </div>
-        
-        {/* requisições se estiver ou nao existindo uma filtração */}
-        {filteredPosts.length > 0 && (
-          <Posts posts={filteredPosts}/>
+      <div className='search-container'>
+        {!!searchValue && (
+            <h1>Search value: {searchValue}</h1>
         )}
 
-        {filteredPosts.length === 0 && (
-          <p>Não existe =( </p>
+        <TextInput 
+          searchValue={searchValue} 
+          handleChange={handleChange}
+        />
+      </div>
+      
+      {/* requisições se estiver ou nao existindo uma filtração */}
+      {filteredPosts.length > 0 && (
+        <Posts posts={filteredPosts}/>
+      )}
+
+      {filteredPosts.length === 0 && (
+        <p>Não existe =( </p>
+      )}
+
+      <div className='button-container'>
+        {!searchValue && (
+            <Button 
+            text='Load more posts'
+            onClick={loadMorePosts}
+            disabled={noMorePosts}
+            />
         )}
+       
+      </div>
 
-        <div className='button-container'>
-          {!searchValue && (
-              <Button 
-              text='Load more posts'
-              onClick={this.loadMorePosts}
-              disabled={noMorePosts}
-              />
-          )}
-         
-        </div>
+    </section>
 
-      </section>
-
-    )
-  }
-
+  )
 }
